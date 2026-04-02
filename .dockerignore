@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+*.md
+downloads/
+data/
+cookies/
+__pycache__/
+*.pyc
+*.session
