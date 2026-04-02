@@ -1,0 +1,4 @@
+pyrogram>=2.0
+tgcrypto
+instaloader>=4.15
+python-dotenv
