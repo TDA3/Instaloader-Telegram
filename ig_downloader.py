@@ -1,9 +1,14 @@
+import glob
+import logging
 import os
 import re
-import glob
 import shutil
+
 import instaloader
-from config import IG_SESSION_FILE, DOWNLOAD_DIR
+
+from config import DOWNLOAD_DIR, IG_SESSION_FILE
+
+logger = logging.getLogger(__name__)
 
 
 class IGDownloader:
@@ -34,11 +39,11 @@ class IGDownloader:
                     os.path.basename(session_file).replace("session", "").strip("_") or "user",
                     session_file,
                 )
-                print(f"[IGDownloader] Session loaded from {session_file}")
+                logger.info("Session loaded from %s", session_file)
             except Exception as e:
-                print(f"[IGDownloader] Failed to load session: {e}")
+                logger.error("Failed to load session: %s", e)
         else:
-            print("[IGDownloader] No session file found — running as anonymous.")
+            logger.warning("No session file found — running as anonymous.")
 
     def _extract_shortcode(self, url: str) -> str | None:
         match = re.search(
@@ -71,8 +76,9 @@ class IGDownloader:
         try:
             if os.path.exists(target_dir):
                 shutil.rmtree(target_dir)
+                logger.info("Cleaned up directory: %s", target_dir)
         except Exception as e:
-            print(f"[IGDownloader] Cleanup error: {e}")
+            logger.error("Cleanup error for %s: %s", target_dir, e)
 
     def download_post(self, url: str) -> dict:
         shortcode = self._extract_shortcode(url)
@@ -83,6 +89,7 @@ class IGDownloader:
         os.makedirs(target_dir, exist_ok=True)
 
         try:
+            logger.info("Downloading post shortcode=%s", shortcode)
             post = instaloader.Post.from_shortcode(self.loader.context, shortcode)
             self.loader.dirname_pattern = target_dir
             self.loader.download_post(post, target=target_dir)
@@ -94,6 +101,7 @@ class IGDownloader:
             if post.typename == "GraphSidecar":
                 media_type = "carousel"
 
+            logger.info("Post downloaded: %d file(s) from @%s", len(files), owner)
             return {
                 "success": True,
                 "files": files,
@@ -103,9 +111,11 @@ class IGDownloader:
                 "target": target_dir,
             }
         except instaloader.exceptions.InstaloaderException as e:
+            logger.error("InstaloaderException downloading post %s: %s", shortcode, e)
             self._cleanup(target_dir)
             return {"success": False, "error": str(e)}
         except Exception as e:
+            logger.error("Error downloading post %s: %s", shortcode, e)
             self._cleanup(target_dir)
             return {"success": False, "error": str(e)}
 
@@ -118,6 +128,7 @@ class IGDownloader:
         os.makedirs(target_dir, exist_ok=True)
 
         try:
+            logger.info("Downloading stories for @%s", username)
             profile = instaloader.Profile.from_username(self.loader.context, username)
             stories = list(self.loader.get_stories(userids=[profile.userid]))
 
@@ -135,6 +146,7 @@ class IGDownloader:
                 self._cleanup(target_dir)
                 return {"success": False, "error": f"No story files downloaded for @{username}."}
 
+            logger.info("Stories downloaded: %d file(s) for @%s", len(files), username)
             return {
                 "success": True,
                 "files": files,
@@ -144,9 +156,11 @@ class IGDownloader:
                 "target": target_dir,
             }
         except instaloader.exceptions.InstaloaderException as e:
+            logger.error("InstaloaderException downloading stories for @%s: %s", username, e)
             self._cleanup(target_dir)
             return {"success": False, "error": str(e)}
         except Exception as e:
+            logger.error("Error downloading stories for @%s: %s", username, e)
             self._cleanup(target_dir)
             return {"success": False, "error": str(e)}
 
@@ -156,6 +170,7 @@ class IGDownloader:
         os.makedirs(target_dir, exist_ok=True)
 
         try:
+            logger.info("Downloading profile picture for @%s", username)
             profile = instaloader.Profile.from_username(self.loader.context, username)
             self.loader.dirname_pattern = target_dir
             self.loader.download_profilepic(profile)
@@ -165,6 +180,7 @@ class IGDownloader:
                 self._cleanup(target_dir)
                 return {"success": False, "error": f"Could not download profile picture for @{username}."}
 
+            logger.info("Profile picture downloaded for @%s", username)
             return {
                 "success": True,
                 "files": files,
@@ -174,9 +190,11 @@ class IGDownloader:
                 "target": target_dir,
             }
         except instaloader.exceptions.InstaloaderException as e:
+            logger.error("InstaloaderException downloading pfp for @%s: %s", username, e)
             self._cleanup(target_dir)
             return {"success": False, "error": str(e)}
         except Exception as e:
+            logger.error("Error downloading pfp for @%s: %s", username, e)
             self._cleanup(target_dir)
             return {"success": False, "error": str(e)}
 
@@ -186,6 +204,7 @@ class IGDownloader:
         os.makedirs(target_dir, exist_ok=True)
 
         try:
+            logger.info("Downloading %d posts for @%s", limit, username)
             profile = instaloader.Profile.from_username(self.loader.context, username)
             self.loader.dirname_pattern = target_dir
             posts = profile.get_posts()
@@ -201,6 +220,7 @@ class IGDownloader:
                 self._cleanup(target_dir)
                 return {"success": False, "error": f"No posts found for @{username}."}
 
+            logger.info("Posts downloaded: %d file(s) for @%s", len(files), username)
             return {
                 "success": True,
                 "files": files,
@@ -210,8 +230,10 @@ class IGDownloader:
                 "target": target_dir,
             }
         except instaloader.exceptions.InstaloaderException as e:
+            logger.error("InstaloaderException downloading posts for @%s: %s", username, e)
             self._cleanup(target_dir)
             return {"success": False, "error": str(e)}
         except Exception as e:
+            logger.error("Error downloading posts for @%s: %s", username, e)
             self._cleanup(target_dir)
             return {"success": False, "error": str(e)}

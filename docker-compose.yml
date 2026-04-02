@@ -1,0 +1,11 @@
+services:
+  bot:
+    build: .
+    container_name: ig-telegram-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./cookies:/app/cookies
+      - ./data:/app/data
+      - ./downloads:/app/downloads
